@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Tap Coins</title>
+<style>
+body{margin:0;background:#10131a;color:#fff;font-family:Arial,sans-serif;text-align:center}
+.wrap{max-width:480px;margin:auto;padding:24px}.card{background:#1b202b;border-radius:20px;padding:18px;margin:12px 0}
+h1{margin:8px}.coins{font-size:42px;font-weight:bold}.energy{opacity:.8}
+button{border:0;border-radius:14px;padding:14px 20px;margin:6px;background:#2d6cdf;color:white;font-size:16px}
+#tap{width:190px;height:190px;border-radius:50%;font-size:28px;margin:24px auto;display:block}
+small{opacity:.65}.row{display:flex;justify-content:space-between}
+</style>
+</head>
+<body>
+<div class="wrap">
+<h1>🪙 Tap Coins</h1>
+<div class="card">
+  <div class="coins" id="coins">0</div>
+  <div class="energy">⚡ <span id="energy">100</span>/100</div>
+  <button id="tap">TAP</button>
+  <button onclick="upgrade()">Upgrade ⚡</button>
+  <button onclick="daily()">Daily Reward 🎁</button>
+</div>
+<div class="card">
+  <h2>🏆 Leaderboard</h2><div id="board"></div>
+</div>
+<small>In-game points only. No real-money withdrawals.</small>
+</div>
+<script src="https://telegram.org/js/telegram-web-app.js"></script>
+<script>
+const tg=window.Telegram?.WebApp; tg?.ready(); tg?.expand();
+const user=tg?.initDataUnsafe?.user || {id: 10001, first_name:"Demo"};
+const id=user.id, username=user.username||user.first_name||"Player";
+let state={coins:0,energy:100,tap_power:1};
+
+async function load(){
+ const r=await fetch(`/api/state?telegram_id=${id}&username=${encodeURIComponent(username)}`);
+ state=await r.json(); render(); leaderboard();
+}
+function render(){coins.textContent=state.coins;energy.textContent=state.energy;}
+tap.onclick=async()=>{
+ const r=await fetch('/api/tap',{method:'POST',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({telegram_id:id,username})});
+ const x=await r.json(); if(x.ok){state.coins=x.coins;state.energy=x.energy;render();}
+};
+async function upgrade(){
+ const r=await fetch('/api/upgrade',{method:'POST',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({telegram_id:id,username})}); const x=await r.json();
+ alert(x.ok?"Upgrade complete!":(x.error+" — cost: "+(x.cost||"")));
+ if(x.ok) load();
+}
+async function daily(){
+ const r=await fetch('/api/daily',{method:'POST',headers:{'Content-Type':'application/json'},
+ body:JSON.stringify({telegram_id:id,username})}); const x=await r.json();
+ alert(x.ok?`+${x.reward} coins!`:x.error); if(x.ok) load();
+}
+async function leaderboard(){
+ const r=await fetch('/api/leaderboard'); const a=await r.json();
+ board.innerHTML=a.map((x,i)=>`<div class="row"><span>#${i+1} ${x.username}</span><b>${x.coins}</b></div>`).join("");
+}
+load();
+setInterval(load,10000);
+</script>
+</body></html>
